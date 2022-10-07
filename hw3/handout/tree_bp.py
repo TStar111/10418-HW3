@@ -373,7 +373,7 @@ def leaves_to_root(unary_potentials, edge_potentials, parents_dict, children_dic
           if len(msgs[node][1]) == 1:
             child_message = msgs[node][1][0]
           else:
-            assert(len(msgs[node[1]]) == 2)
+            assert(len(msgs[node][1]) == 2)
             child_message = torch.add(msgs[node][1][0], msgs[node][1][1])
 
         # Incorporate unary_potential

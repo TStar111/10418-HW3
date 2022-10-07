@@ -383,7 +383,6 @@ def leaves_to_root(unary_potentials, edge_potentials, parents_dict, children_dic
           message_with_unary = torch.add(unary_potentials[node], child_message)
 
         # Incorporate edge potential, and considers root
-        # TODO
         if node != 0:
           complete_message = torch.add(edge_potentials[node], message_with_unary)
           complete_message = torch.logsumexp(complete_message, 1)
@@ -405,7 +404,7 @@ def leaves_to_root(unary_potentials, edge_potentials, parents_dict, children_dic
 
         # Check if parent is ready to propogate message
         if node != 0:
-          if completed.issubset(set(children_dict[parent])):
+          if (set(children_dict[parent])).issubset(completed):
             next_explore.append(parent)
 
       # Copy over the next round to explore

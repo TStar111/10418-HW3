@@ -371,10 +371,10 @@ def leaves_to_root(unary_potentials, edge_potentials, parents_dict, children_dic
         # Identify relevant child messages
         if msgs[node][1] is not None:
           if len(msgs[node][1]) == 1:
-            child_message = msgs[node][1]
+            child_message = msgs[node][1][0]
           else:
             assert(len(msgs[node[1]]) == 2)
-            child_message = torch.multiply(msgs[node][1][0], msgs[node][1][1])
+            child_message = torch.add(msgs[node][1][0], msgs[node][1][1])
 
         # Incorporate unary_potential
         if msgs[node][1] is None:
@@ -385,7 +385,8 @@ def leaves_to_root(unary_potentials, edge_potentials, parents_dict, children_dic
         # Incorporate edge potential, and considers root
         # TODO
         if node != 0:
-          complete_message = torch.matmul(edge_potentials[node], message_with_unary)
+          complete_message = torch.add(edge_potentials[node], message_with_unary)
+          complete_message = torch.logsumexp(complete_message, 1)
         else:
           complete_message = message_with_unary
 
@@ -400,7 +401,7 @@ def leaves_to_root(unary_potentials, edge_potentials, parents_dict, children_dic
 
         # Increment iter and completed
         iters += 1
-        completed.append(node)
+        completed.add(node)
 
         # Check if parent is ready to propogate message
         if node != 0:
@@ -418,7 +419,6 @@ def leaves_to_root(unary_potentials, edge_potentials, parents_dict, children_dic
 #       and messages from leaves to root
 # Output: return updates messages (same variable called msgs) which is a dictionary as specified previously
 def root_to_leaves(unary_potentials, edge_potentials, children_dict, msgs):
-    print(msgs)
     raise NotImplementedError("Please implement the TODO here!")
 
 # TODO: implement belief propogation given the potentials along with parent and children dictionary and leaf index

@@ -351,9 +351,6 @@ def leaves_to_root(unary_potentials, edge_potentials, parents_dict, children_dic
     msgs = {}  # {node_idx: [message to send to parent, message received from nodes below, message received from parent]}
     iters = 0
 
-    # Initializes some shape values
-    tree_len, tag_size = unary_potentials.shape
-
     # Initializes a list to be copied for next round of belief prop
     next_explore = []
 
@@ -418,7 +415,61 @@ def leaves_to_root(unary_potentials, edge_potentials, parents_dict, children_dic
 #       and messages from leaves to root
 # Output: return updates messages (same variable called msgs) which is a dictionary as specified previously
 def root_to_leaves(unary_potentials, edge_potentials, children_dict, msgs):
-    raise NotImplementedError("Please implement the TODO here!")
+    to_explore = set([0])
+    completed = set({})
+    iters = 0
+
+    tree_len, tag_size = unary_potentials.shape
+
+    # Initializes a list to be copied for next round of belief prop
+    next_explore = []
+
+    while len(to_explore) != 0:
+      for node in to_explore:
+
+        # Identify relevant parent messages
+        if msgs[node][2] is not None:
+          parent_message = msgs[node][2]
+
+        # Incorporate unary_potential
+        if msgs[node][2] is None:
+          message_with_unary = unary_potentials[node]
+        else:
+          message_with_unary = torch.add(unary_potentials[node], parent_message)
+
+        # Reshape message_with_unary in preparation of adding
+        changed_unary_message = torch.reshape(message_with_unary, (tag_size, 1))
+
+        for i in range(len(children_dict[node])):
+          child = children_dict[node][i]
+
+          # Incorporate other child
+          if len(children_dict[node]) == 2:
+            other_child = children_dict[node][(i+1)%2]
+            changed_unary_message = torch.add(changed_unary_message, msgs[other_child][0])
+
+          # Incorporate edge potential
+          complete_message = torch.add(edge_potentials[child], changed_unary_message)
+          complete_message = torch.logsumexp(complete_message, 0)
+
+          # Copy to relvant areas
+          msgs[child][2] = complete_message
+        
+          # Increment completed
+          iters += 1
+
+          # Add chilren to to_explore
+          if child in children_dict:
+            next_explore.append(child)
+        
+        # Update completed list
+        completed.add(node)
+
+      # Copy over the next round to explore
+      to_explore = set(next_explore)
+      next_explore = []
+
+    return msgs
 
 # TODO: implement belief propogation given the potentials along with parent and children dictionary and leaf index
 # Output: A dictionary representing the beliefs where keys correspond to leaves_idx

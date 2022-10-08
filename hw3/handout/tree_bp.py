@@ -467,14 +467,41 @@ def root_to_leaves(unary_potentials, edge_potentials, children_dict, msgs):
     return msgs
 
 # TODO: implement belief propogation given the potentials along with parent and children dictionary and leaf index
-# Output: A dictionary representing the beliefs where keys correspond to leaves_idx
+# Output: A dictionary representing the beliefs where keys correspond to each node
 # Hint: It could be useful to look at the train loop first to get further understanding of the inputs/ how the 
 #       function fits into the training process
 # Hint: For modularity and easier debugging it could be useful to utilize the two functions above that passes messages leaves to root
 #       and root to leaves
 def belief_propagation(unary_potentials, edge_potentials, parents_dict, children_dict, leaves_idx):
-    raise NotImplementedError("Please implement the TODO here!")
+    # Generate the full msgs needed
+    msgs = leaves_to_root(unary_potentials, edge_potentials, parents_dict, children_dict, leaves_idx)
+    msgs = root_to_leaves(unary_potentials, edge_potentials, children_dict, msgs)
+    beliefs = {}
+    tree_len, tag_size = unary_potentials.shape
 
+    for i in range(tree_len):
+      # Initializes belief
+      init = torch.zeros(tag_size)
+
+      # Incorporates unary factor
+      with_unary = torch.add(init, unary_potentials[i])
+
+      # Incorporates parent messages
+      with_parents = with_unary
+      if msgs[i][2] is not None:
+        with_parents = torch.add(with_parents, msgs[i][2])
+
+      # Incorporates child messages
+      with_child = with_parents
+      if msgs[i][1] is not None:
+        d = msgs[i][1]
+        for key in d:
+          with_child = torch.add(with_child, d[key])
+
+      # Store into beliefs
+      beliefs[i] = with_child
+
+    return beliefs
 
 ####################################################################
 ## Train loop

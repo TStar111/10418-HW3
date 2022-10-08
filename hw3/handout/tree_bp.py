@@ -350,6 +350,7 @@ def leaves_to_root(unary_potentials, edge_potentials, parents_dict, children_dic
     completed = set([])
     msgs = {}  # {node_idx: [message to send to parent, message received from nodes below, message received from parent]}
     iters = 0
+    tree_len, tag_size = unary_potentials.shape
 
     # Initializes a list to be copied for next round of belief prop
     next_explore = []
@@ -366,18 +367,13 @@ def leaves_to_root(unary_potentials, edge_potentials, parents_dict, children_dic
           msgs[node] = [None, None, None]
 
         # Identify relevant child messages
-        if msgs[node][1] is not None:
-          if len(msgs[node][1]) == 1:
-            child_message = msgs[node][1][0]
-          else:
-            assert(len(msgs[node][1]) == 2)
-            child_message = torch.add(msgs[node][1][0], msgs[node][1][1])
+        child_message = torch.zeros(tag_size, 1)
+        if node in children_dict: # Checks if node has children
+          for child in children_dict[node]:
+            child_message = torch.add(child_message, msgs[node][1][child])
 
         # Incorporate unary_potential
-        if msgs[node][1] is None:
-          message_with_unary = unary_potentials[node]
-        else:
-          message_with_unary = torch.add(unary_potentials[node], child_message)
+        message_with_unary = torch.add(unary_potentials[node], child_message)
 
         # Incorporate edge potential, and considers root
         if node != 0:
@@ -390,10 +386,9 @@ def leaves_to_root(unary_potentials, edge_potentials, parents_dict, children_dic
         msgs[node][0] = complete_message
         if node != 0:
           if msgs[parent][1] is None:
-            msgs[parent][1] = [complete_message]
+            msgs[parent][1] = {node: complete_message}
           else:
-            assert isinstance(msgs[parent][1], list)
-            msgs[parent][1].append(complete_message)
+            msgs[parent][1][node] = complete_message
 
         # Increment iter and completed
         iters += 1
@@ -437,16 +432,15 @@ def root_to_leaves(unary_potentials, edge_potentials, children_dict, msgs):
         else:
           message_with_unary = torch.add(unary_potentials[node], parent_message)
 
-        # Reshape message_with_unary in preparation of adding
-        changed_unary_message = torch.reshape(message_with_unary, (tag_size, 1))
-
         for i in range(len(children_dict[node])):
           child = children_dict[node][i]
 
           # Incorporate other child
           if len(children_dict[node]) == 2:
-            other_child = children_dict[node][(i+1)%2]
-            changed_unary_message = torch.add(changed_unary_message, msgs[other_child][0])
+            message_with_unary = torch.add(message_with_unary, msgs[node][1][i])
+
+          # Change message shape for adding
+          changed_unary_message = torch.reshape(message_with_unary, (tag_size, 1))
 
           # Incorporate edge potential
           complete_message = torch.add(edge_potentials[child], changed_unary_message)

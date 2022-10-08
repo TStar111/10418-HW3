@@ -408,6 +408,7 @@ def leaves_to_root(unary_potentials, edge_potentials, parents_dict, children_dic
 # TODO: complete this function which is a helper function for belief propogation
 #       and does message passing from root to leaves given the potentials, dictionaries
 #       and messages from leaves to root
+#       msgs: # {node_idx: [message to send to parent, message received from nodes below, message received from parent]}
 # Output: return updates messages (same variable called msgs) which is a dictionary as specified previously
 def root_to_leaves(unary_potentials, edge_potentials, children_dict, msgs):
     to_explore = set([0])
@@ -423,24 +424,24 @@ def root_to_leaves(unary_potentials, edge_potentials, children_dict, msgs):
       for node in to_explore:
 
         # Identify relevant parent messages
+        parent_message = torch.zeros(tag_size)
         if msgs[node][2] is not None:
-          parent_message = msgs[node][2]
+          parent_message = torch.add(msgs[node][2], parent_message)
 
         # Incorporate unary_potential
-        if msgs[node][2] is None:
-          message_with_unary = unary_potentials[node]
-        else:
-          message_with_unary = torch.add(unary_potentials[node], parent_message)
-
+        message_with_unary = torch.add(unary_potentials[node], parent_message)
         for i in range(len(children_dict[node])):
           child = children_dict[node][i]
 
           # Incorporate other child
           if len(children_dict[node]) == 2:
-            message_with_unary = torch.add(message_with_unary, msgs[node][1][i])
+            other_child = children_dict[node][(i+1)%2]
+            child_with_unary = torch.add(message_with_unary, msgs[node][1][other_child])
+          else:
+            child_with_unary = message_with_unary
 
           # Change message shape for adding
-          changed_unary_message = torch.reshape(message_with_unary, (tag_size, 1))
+          changed_unary_message = torch.reshape(child_with_unary, (tag_size, 1))
 
           # Incorporate edge potential
           complete_message = torch.add(edge_potentials[child], changed_unary_message)

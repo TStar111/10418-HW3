@@ -1,4 +1,5 @@
 import time
+from regex import B
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset
@@ -306,9 +307,51 @@ class TreeCrfLoss(nn.Module):
 
     # TODO: implement the loss function given the potentials, beliefs, children dictionary, and true labels
     # Output: loss value
-    # Hint: Useful functions to look into are torch.logsumexp, nn.NLLLoss(),and nn.LogSoftmax
+    # Hint: Useful functions to look into are torch.logsumexp
     def forward(self, unary_potentials, edge_potentials, beliefs, children_dict, true_labels):
-        raise NotImplementedError("Please implement the TODO here!")
+      
+      # Intialize loss with unary potential of root
+      loss = unary_potentials[0][true_labels[0]]
+
+      # Initialize sets to maintain what nodes need to be covered
+      to_explore = set([0])
+      next_explore = []
+
+      # Iterate through the tree with true labels from the root
+      while len(to_explore) > 0:
+        for node in to_explore:
+          parent_label = true_labels[node]
+
+          # Incorporate children
+          for child in children_dict[node]:
+            # Incorporate edge potentials
+            child_label = true_labels[child]
+            loss = torch.add(
+              loss,
+              edge_potentials[child][parent_label, child_label]
+            )
+
+            # Incorporate unary potential of child
+            loss = torch.add(
+              loss,
+              unary_potentials[child][child_label]
+            )
+
+            # Add child to be iterated over if they have children
+            if child in children_dict:
+              next_explore.append(child)
+
+        to_explore = set(next_explore)
+        next_explore = []
+
+      # Compute log_partition function
+      log_partition = torch.logsumexp(beliefs[0], dim=0)
+
+      # Final loss
+      loss = torch.neg(torch.sub(loss, log_partition))
+
+      return loss
+      
 
 # Returns metrics from decoding tree
 def treeDecoder(beliefs, true_labels, leaves_idxs):
